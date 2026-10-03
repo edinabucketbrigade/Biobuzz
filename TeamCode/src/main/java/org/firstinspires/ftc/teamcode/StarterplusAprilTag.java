@@ -25,7 +25,7 @@ import org.firstinspires.ftc.vision.apriltag.AprilTagSingleDetection;
 import java.util.List;
 
 @TeleOp(name = "BioBuzz StarterBot + AprilTag", group = "StarterBot")
-public class CameraRun extends LinearOpMode {
+public class StarterplusAprilTag extends LinearOpMode {
 
     // --- Robot Hardware Variables ---
     private DcMotor leftDrive = null;
@@ -36,8 +36,8 @@ public class CameraRun extends LinearOpMode {
     private CRServo rightIntakeServo = null;
     private CRServo windmillServo = null;
 
-    public final int LAUNCHER_TARGET_VELOCITY = 10000;
-    public final int LAUNCHER_MIN_VELOCITY = 9500;
+    public final int LAUNCHER_TARGET_VELOCITY = 6000;
+    public final int LAUNCHER_MIN_VELOCITY = 5500;
 
     double leftPower;
     double rightPower;
