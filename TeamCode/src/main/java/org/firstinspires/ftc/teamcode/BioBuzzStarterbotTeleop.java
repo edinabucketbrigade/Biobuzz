@@ -11,7 +11,7 @@
  *   The above copyright notice and this permission notice shall be included in all
  *   copies or substantial portions of the Software.
 
- *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\
+ *   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
  *   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
  *   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
  *   AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
@@ -72,8 +72,8 @@ public class BioBuzzStarterbotTeleop extends OpMode {
      * in the launch() function to only run the windmill servo when the motor is spinning fast
      * enough to make a successful throw.
      */
-    public final int LAUNCHER_TARGET_VELOCITY = 1500;
-    public final int LAUNCHER_MIN_VELOCITY = 1350;
+    public final int LAUNCHER_TARGET_VELOCITY = 1250;
+    public final int LAUNCHER_MIN_VELOCITY = 1200;
 
     /*
      * These two variables store the power we need to apply to the motors. In other cases, we may
@@ -251,7 +251,7 @@ public class BioBuzzStarterbotTeleop extends OpMode {
          * holding down the right gamepad. If they are, then we want to start spinning up the launcher.
          * Otherwise, we start spinning the launcher down.
          */
-        if (gamepad2.right_trigger_pressed || gamepad1.right_bumper) {
+        if (gamepad1.right_bumper) {
             launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
         } else {
             launcher.setVelocity(0);
@@ -264,18 +264,10 @@ public class BioBuzzStarterbotTeleop extends OpMode {
          * add some power to the intake power. This can sometimes help dislodge stuck elements from
          * inside the hopper.
          */
-        boolean shouldLaunch=false;
-
-        if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
-            if ((gamepad2.right_trigger_pressed || gamepad1.right_bumper)) {
-       shouldLaunch=true;
-            }
-        }
-
-        if(shouldLaunch){
+        if (gamepad1.right_bumper && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
             windmillServo.setPower(1);
             intakePower += 0.5;
-        }else{
+        } else {
             windmillServo.setPower(0);
         }
     }
