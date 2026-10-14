@@ -123,13 +123,21 @@ public class starterStudiedTelMech extends OpMode {
     }
 
     void launch() {
-        if (gamepad1.right_bumper) {
+        if (gamepad2.right_trigger_pressed || gamepad1.right_bumper) {
             launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
         } else {
             launcher.setVelocity(0);
         }
 
-        if (gamepad1.right_bumper && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
+        boolean shouldLaunch=false;
+
+        if (launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
+            if ((gamepad2.right_trigger_pressed || gamepad1.right_bumper)) {
+                shouldLaunch=true;
+            }
+        }
+
+        if(shouldLaunch){
             windmillServo.setPower(1);
             intakePower += 0.5;
         } else {
