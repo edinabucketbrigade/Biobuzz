@@ -131,7 +131,7 @@ public class starterStudiedTelMech extends OpMode {
 
         if (gamepad1.right_bumper && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
             windmillServo.setPower(1);
-            intakePower += 0.5;
+            intakePower += .5;
         } else {
             windmillServo.setPower(0);
         }
