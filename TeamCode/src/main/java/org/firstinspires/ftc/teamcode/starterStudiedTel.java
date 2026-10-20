@@ -21,8 +21,8 @@ public class starterStudiedTel extends OpMode {
     private CRServo rightIntakeServo = null;
     private CRServo windmillServo = null;
 
-    public final int LAUNCHER_TARGET_VELOCITY = 1300;
-    public final int LAUNCHER_MIN_VELOCITY = 1250;
+    public final int LAUNCHER_TARGET_VELOCITY = 1250;
+    public final int LAUNCHER_MIN_VELOCITY = 1200;
 
     double leftPower;
     double rightPower;
