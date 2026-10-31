@@ -30,7 +30,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
  * (0, 0) is wherever the robot was sitting when you pressed INIT.
  * Press Y at any time to re-zero the position to where the robot is now.
  */
-@TeleOp(name = "TestOpmode", group = "StarterBot") public class MyOpmode extends OpMode {
+@TeleOp(name = "TestMainOpmode", group = "StarterBot") public class MyOpmode extends OpMode {
 
     // ---------- Hardware ----------
     private DcMotor leftFrontDrive = null;
