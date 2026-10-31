@@ -45,8 +45,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
     private SparkFunOTOS otos = null;
 
     // ---------- Launcher ----------
-    public final int LAUNCHER_TARGET_VELOCITY = 1400;
-    public final int LAUNCHER_MIN_VELOCITY = 1350;
+    public final int LAUNCHER_TARGET_VELOCITY = 1250;
+    public final int LAUNCHER_MIN_VELOCITY = 1200;
 
     // ---------- Auto "go to" tuning (change these!) ----------
     static final double TARGET_X_IN = 0;       // inches
