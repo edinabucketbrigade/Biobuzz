@@ -65,6 +65,8 @@ public class FirstAuto extends OpMode {
     boolean lastA = false;
     boolean atTarget = false;
 
+    boolean isTargetReset = false;
+
     double leftFrontPower;
     double rightFrontPower;
     double leftBackPower;
@@ -121,6 +123,7 @@ public class FirstAuto extends OpMode {
         // Y re-zeros the position to wherever the robot is right now
         if (gamepad1.y) {
             otos.resetTracking();
+            isTargetReset = true;
         }
 
         SparkFunOTOS.Pose2D pos = otos.getPosition();
@@ -139,13 +142,14 @@ public class FirstAuto extends OpMode {
         rightIntakeServo.setPower(intakePower);
 
         // ----- Telemetry -----
-        telemetry.addData("Mode", autoMode ? "AUTO (press A to cancel)" : "DRIVER (press A for auto)");
+        telemetry.addData("Mode", autoMode ? "AUTO (press A or X to cancel)" : "DRIVER (press A or X for auto)");
         if (autoMode) {
             telemetry.addData("At target", atTarget);
         }
         telemetry.addData("X (in)", "%.2f", pos.x);
         telemetry.addData("Y (in)", "%.2f", pos.y);
         telemetry.addData("Heading (deg)", "%.1f", pos.h);
+        telemetry.addData("is target set?", isTargetReset);
     }
 
     /** Slowly drives toward (TARGET_X_IN, TARGET_Y_IN, TARGET_HEADING_DEG). */

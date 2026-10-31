@@ -49,7 +49,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
  * we will also need to adjust the "PIDF" coefficients with some that are a better fit for our application.
  */
 
-@TeleOp(name = "BioBuzz StarterBot Teleop Main?", group = "StarterBot")
+@TeleOp(name = "NO LONGER NEEDED", group = "StarterBot")
 //@Disabled
 public class BioBuzzStarterbotTeleop extends OpMode {
 
