@@ -3,6 +3,8 @@ package org.firstinspires.ftc.teamcode;
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
 
+import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
@@ -30,7 +32,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
  * (0, 0) is wherever the robot was sitting when you pressed INIT.
  * Press Y at any time to re-zero the position to where the robot is now.
  */
-@TeleOp(name = "TestOpmode", group = "StarterBot") public class MyOpmode extends OpMode {
+@TeleOp(name = "TestMainOpmode", group = "StarterBot") public class MyOpmode extends OpMode {
 
     // ---------- Hardware ----------
     private DcMotor leftFrontDrive = null;
@@ -82,6 +84,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
     @Override
     public void init() {
+        telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
         leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
         leftBackDrive = hardwareMap.get(DcMotor.class, "left_back_drive");
