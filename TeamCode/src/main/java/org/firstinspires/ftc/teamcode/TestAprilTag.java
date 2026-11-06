@@ -14,6 +14,7 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+import com.qualcomm.robotcore.util.ElapsedTime;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
@@ -21,25 +22,37 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.vision.VisionPortal;
 
 /*
- * Your teleop + a "go to (0, 0)" auto mode.
+ * Your teleop + a "go to (0, 0)" auto mode + camera on the dashboard + keyboard control.
+ *
+ * KEYBOARD CONTROL
+ *   1. Press INIT on the Driver Hub.
+ *   2. On your laptop (on the robot's Wi-Fi) open  http://192.168.43.1:8090
+ *   3. Keep that tab focused and use the keys:
+ *        W/S forward/back   A/D strafe   Q/E turn
+ *        I/K intake in/out  Space = feed launcher
+ *        F = flywheel on/off   G = auto go-to-(0,0) on/off   R = re-zero position
+ *   The physical gamepad still works too (inputs are added together).
+ *   If the page stops sending (tab closed, Wi-Fi drop, tab unfocused), the robot stops.
+ *
+ * GAMEPAD
  *   Press A  -> robot slowly drives itself to X = 0 in, Y = 0 in (and heading 0).
  *   Press A again -> back to normal driver control.
+ *   Right bumper -> feeds balls (windmill) once the flywheel is up to speed.
+ *   Press B      -> toggle the flywheel off/on mid-match.
+ *   Press Y      -> re-zero the position to where the robot is now.
  *
  * The flywheel/launcher spins up automatically when you press PLAY and
  * stays on until you press STOP on the Driver Hub.
- *   Right bumper -> feeds balls (windmill) once the flywheel is up to speed.
- *   Press B      -> optional: toggle the flywheel off/on mid-match.
  *
  * The robot's position comes from the SparkFun OTOS sensor, which must be
  * named "sensor_otos" in your robot configuration.
  * (0, 0) is wherever the robot was sitting when you pressed INIT.
- * Press Y at any time to re-zero the position to where the robot is now.
  *
  * Camera: the webcam (named CAMERA_NAME in your robot configuration) is streamed
- * to FTC Dashboard. Open http://192.168.43.1:8080/dash and view the camera feed.
+ * to FTC Dashboard at http://192.168.43.1:8080/dash
  */
 @Config
-@TeleOp(name = "Test-aprilTag", group = "MainTeleOps") public class TestAprilTag extends OpMode {
+@TeleOp(name = "NEWEST", group = "MainTeleOps") public class TestAprilTag extends OpMode {
     private DcMotor leftFrontDrive = null;
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -58,6 +71,15 @@ import org.firstinspires.ftc.vision.VisionPortal;
     static final int CAMERA_WIDTH = 640;
     static final int CAMERA_HEIGHT = 480;
     static final int CAMERA_DASHBOARD_FPS = 15;     // lower this if the stream lags
+
+    // ---------- Keyboard control ----------
+    private KeyboardServer keyboard = null;
+    private final ElapsedTime loopTimer = new ElapsedTime();
+    public static double KB_RAMP_PER_SEC = 3.0;     // power per second when speeding up (3.0 = full power in ~0.33 s)
+    public static double KB_BRAKE_MULTIPLIER = 3.0; // slowing down is this many times faster than speeding up
+    private double kbForward = 0;
+    private double kbStrafe = 0;
+    private double kbRotate = 0;
 
     // ---------- Launcher ----------
     public static int LAUNCHER_TARGET_VELOCITY = 1400;
@@ -133,7 +155,11 @@ import org.firstinspires.ftc.vision.VisionPortal;
         configureOtos();
         configureCamera();
 
+        keyboard = new KeyboardServer();
+        keyboard.start();
+
         telemetry.addData("Status", "Initialized - keep robot still & place it at start (0,0)");
+        telemetry.addData("Keyboard page", "http://192.168.43.1:" + KeyboardServer.PORT);
         telemetry.update();
     }
 
@@ -159,46 +185,82 @@ import org.firstinspires.ftc.vision.VisionPortal;
     public void start() {
         flywheelOn = true;
         launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
+        loopTimer.reset();
     }
 
     @Override
     public void loop() {
-        // ----- A button toggles auto / driver control (edge-detected) -----
-        if (gamepad1.a && !lastA) {
+        double dt = Math.min(loopTimer.seconds(), 0.1);
+        loopTimer.reset();
+
+        // ----- Read the keyboard (page must be open and sending, otherwise everything is 0) -----
+        boolean kbActive = keyboard.isActive();
+        int keys = kbActive ? keyboard.getMask() : 0;
+        double kbSpeed = keyboard.getSpeed();
+
+        boolean kbAuto = (keys & KeyboardServer.KEY_AUTO) != 0;
+        boolean kbFlywheel = (keys & KeyboardServer.KEY_FLYWHEEL) != 0;
+        boolean kbRezero = (keys & KeyboardServer.KEY_REZERO) != 0;
+        boolean kbFeed = (keys & KeyboardServer.KEY_FEED) != 0;
+
+        // ----- A button / G key toggles auto / driver control (edge-detected) -----
+        boolean aNow = gamepad1.a || kbAuto;
+        if (aNow && !lastA) {
             autoMode = !autoMode;
             atTarget = false;
         }
-        lastA = gamepad1.a;
+        lastA = aNow;
 
-        // Y re-zeros the position to wherever the robot is right now
-        if (gamepad1.y) {
+        // Y button / R key re-zeros the position to wherever the robot is right now
+        if (gamepad1.y || kbRezero) {
             otos.resetTracking();
             isTargetReset = true;
         }
 
         SparkFunOTOS.Pose2D pos = otos.getPosition();
 
+        // ----- Keyboard drive values, ramped so the robot doesn't jerk -----
+        if (kbActive) {
+            kbForward = ramp(kbForward, axis(keys, KeyboardServer.KEY_FORWARD, KeyboardServer.KEY_BACK) * kbSpeed, dt);
+            kbStrafe = ramp(kbStrafe, axis(keys, KeyboardServer.KEY_STRAFE_R, KeyboardServer.KEY_STRAFE_L) * kbSpeed, dt);
+            kbRotate = ramp(kbRotate, axis(keys, KeyboardServer.KEY_TURN_R, KeyboardServer.KEY_TURN_L) * kbSpeed, dt);
+        } else {
+            // Page closed / connection lost: stop immediately.
+            kbForward = 0;
+            kbStrafe = 0;
+            kbRotate = 0;
+        }
+
         if (autoMode) {
             driveToTarget(pos);
         } else {
-            mecanumDrive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+            mecanumDrive(
+                    -gamepad1.left_stick_y + kbForward,
+                    gamepad1.left_stick_x + kbStrafe,
+                    gamepad1.right_stick_x + kbRotate);
         }
 
-        // ----- B button toggles the flywheel on/off (edge-detected, optional) -----
-        if (gamepad1.b && !lastB) {
+        // ----- B button / F key toggles the flywheel on/off (edge-detected, optional) -----
+        boolean bNow = gamepad1.b || kbFlywheel;
+        if (bNow && !lastB) {
             flywheelOn = !flywheelOn;
         }
-        lastB = gamepad1.b;
+        lastB = bNow;
 
         // ----- Intake + launcher (works in both modes) -----
-        intakePower = gamepad1.right_trigger - gamepad1.left_trigger;
-        launch();
+        double kbIntake = axis(keys, KeyboardServer.KEY_INTAKE_IN, KeyboardServer.KEY_INTAKE_OUT);
+        intakePower = gamepad1.right_trigger - gamepad1.left_trigger + kbIntake;
+        launch(gamepad1.right_bumper || kbFeed);
         intake.setPower(intakePower);
         leftIntakeServo.setPower(intakePower);
         rightIntakeServo.setPower(intakePower);
 
         // ----- Telemetry -----
-        telemetry.addData("Mode", autoMode ? "AUTO (press A or X to cancel)" : "DRIVER (press A or X for auto)");
+        telemetry.addData("Mode", autoMode ? "AUTO (press A or G to cancel)" : "DRIVER (press A or G for auto)");
+        if (keyboard.getError() != null) {
+            telemetry.addData("KEYBOARD SERVER ERROR", keyboard.getError());
+        }
+        telemetry.addData("Keyboard", kbActive ? "connected, speed " + Math.round(kbSpeed * 100) + "%" : "no page connected");
         if (autoMode) {
             telemetry.addData("At target", atTarget);
         }
@@ -219,11 +281,31 @@ import org.firstinspires.ftc.vision.VisionPortal;
     public void stop() {
         launcher.setVelocity(0);
         windmillServo.setPower(0);
+        mecanumDrive(0, 0, 0);
 
+        if (keyboard != null) {
+            keyboard.stop();
+        }
         FtcDashboard.getInstance().stopCameraStream();
         if (visionPortal != null) {
             visionPortal.close();
         }
+    }
+
+    /** +1 if the "positive" key is held, -1 if the "negative" key is held, 0 if both or neither. */
+    private double axis(int keys, int positiveBit, int negativeBit) {
+        double v = 0;
+        if ((keys & positiveBit) != 0) v += 1;
+        if ((keys & negativeBit) != 0) v -= 1;
+        return v;
+    }
+
+    /** Moves "current" toward "target" no faster than the ramp rate (and brakes faster than it accelerates). */
+    private double ramp(double current, double target, double dt) {
+        boolean slowingDown = Math.abs(target) < Math.abs(current);
+        double step = KB_RAMP_PER_SEC * dt * (slowingDown ? KB_BRAKE_MULTIPLIER : 1.0);
+        if (target > current) return Math.min(target, current + step);
+        return Math.max(target, current - step);
     }
 
     /**
@@ -300,13 +382,13 @@ import org.firstinspires.ftc.vision.VisionPortal;
     }
 
     /**
-     * Flywheel stays spinning (started in start()). The right bumper only
-     * runs the windmill feeder once the flywheel is up to speed.
+     * Flywheel stays spinning (started in start()). The feed button (right bumper or Space)
+     * only runs the windmill feeder once the flywheel is up to speed.
      */
-    void launch() {
+    void launch(boolean feedPressed) {
         launcher.setVelocity(flywheelOn ? LAUNCHER_TARGET_VELOCITY : 0);
 
-        if (flywheelOn && gamepad1.right_bumper && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
+        if (flywheelOn && feedPressed && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
             windmillServo.setPower(1);
             intakePower += 0.5;
         } else {
