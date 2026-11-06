@@ -4,6 +4,7 @@ import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
 
 import com.acmerobotics.dashboard.FtcDashboard;
+import com.acmerobotics.dashboard.config.Config;
 import com.acmerobotics.dashboard.telemetry.MultipleTelemetry;
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
@@ -32,9 +33,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
  * (0, 0) is wherever the robot was sitting when you pressed INIT.
  * Press Y at any time to re-zero the position to where the robot is now.
  */
-@TeleOp(name = "TestMainOpmode", group = "StarterBot") public class MyOpmode extends OpMode {
-
-    // ---------- Hardware ----------
+@Config
+@TeleOp(name = "NEWEST", group = "MainTeleOps") public class Main extends OpMode {
     private DcMotor leftFrontDrive = null;
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -47,8 +47,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
     private SparkFunOTOS otos = null;
 
     // ---------- Launcher ----------
-    public final int LAUNCHER_TARGET_VELOCITY = 1400;
-    public final int LAUNCHER_MIN_VELOCITY = 1350;
+    public static int LAUNCHER_TARGET_VELOCITY = 1400;
+    public static int LAUNCHER_MIN_VELOCITY = 1350;
+    public static boolean TEST = false;
 
     // ---------- Auto "go to" tuning (change these!) ----------
     static final double TARGET_X_IN = 0;       // inches
@@ -121,7 +122,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
         telemetry.addData("Status", "Initialized - keep robot still & place it at start (0,0)");
     }
 
-    /** Runs once when the driver presses PLAY: spin up the flywheel. */
+    /**
+     * Runs once when the driver presses PLAY: spin up the flywheel.
+     */
     @Override
     public void start() {
         flywheelOn = true;
@@ -177,14 +180,18 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
         telemetry.addData("is target set?", isTargetReset);
     }
 
-    /** Runs once when the driver presses STOP. */
+    /**
+     * Runs once when the driver presses STOP.
+     */
     @Override
     public void stop() {
         launcher.setVelocity(0);
         windmillServo.setPower(0);
     }
 
-    /** Slowly drives toward (TARGET_X_IN, TARGET_Y_IN, TARGET_HEADING_DEG). */
+    /**
+     * Slowly drives toward (TARGET_X_IN, TARGET_Y_IN, TARGET_HEADING_DEG).
+     */
     void driveToTarget(SparkFunOTOS.Pose2D pos) {
         double errX = TARGET_X_IN - pos.x;            // field-frame error, inches
         double errY = TARGET_Y_IN - pos.y;
@@ -216,7 +223,9 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
         mecanumDrive(forward, strafe, rotate);
     }
 
-    /** Limits to MAX_AUTO_POWER and bumps tiny commands up to MIN_AUTO_POWER so the robot actually moves. */
+    /**
+     * Limits to MAX_AUTO_POWER and bumps tiny commands up to MIN_AUTO_POWER so the robot actually moves.
+     */
     double clampWithMin(double power, double deadband) {
         if (Math.abs(power) < deadband) return 0;
         double sign = Math.signum(power);
@@ -283,4 +292,5 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
         otos.resetTracking();
         otos.setPosition(new SparkFunOTOS.Pose2D(0, 0, 0));
     }
+
 }

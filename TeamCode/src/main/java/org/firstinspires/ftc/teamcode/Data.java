@@ -12,7 +12,7 @@ import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
-@TeleOp(name = "Mec BioBuzz Teleop + Auto Toggle", group = "StarterBot")
+@TeleOp(name = "Mec BioBuzz Teleop + Auto Toggle backup", group = "StarterBot")
 public class Data extends OpMode {
 
     private DcMotor leftFrontDrive = null;
