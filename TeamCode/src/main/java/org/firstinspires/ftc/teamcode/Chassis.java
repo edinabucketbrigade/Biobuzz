@@ -22,15 +22,17 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.vision.VisionPortal;
 
 /*
- * Your teleop + a "go to (0, 0)" auto mode + camera on the dashboard + keyboard control.
+ * Your teleop + a "go to (0, 0)" auto mode + camera on the dashboard + a web control page.
  *
- * KEYBOARD CONTROL
- *   1. Press INIT on the Driver Hub.
- *   2. On your laptop (on the robot's Wi-Fi) open  http://192.168.43.1:8090
- *   3. Keep that tab focused and use the keys:
- *        W/S forward/back   A/D strafe   Q/E turn
- *        I/K intake in/out  Space = feed launcher
- *        F = flywheel on/off   G = auto go-to-(0,0) on/off   R = re-zero position
+ * WEB CONTROL PAGE  (http://192.168.43.1:8090, while on the robot's Wi-Fi)
+ *   The page is served by KeyboardServer, which runs for as long as the Robot Controller app
+ *   is running, so you can open it BEFORE the OpMode is started. From the page you can:
+ *     - pick an OpMode and press Init / Start / Stop
+ *     - watch the camera and this OpMode's telemetry
+ *     - drive with the keyboard:
+ *         W/S forward/back   A/D strafe   Q/E turn
+ *         I/K intake in/out  Space = feed launcher
+ *         F = flywheel on/off   G = auto go-to-(0,0) on/off   R = re-zero position
  *   The physical gamepad still works too (inputs are added together).
  *   If the page stops sending (tab closed, Wi-Fi drop, tab unfocused), the robot stops.
  *
@@ -42,17 +44,17 @@ import org.firstinspires.ftc.vision.VisionPortal;
  *   Press Y      -> re-zero the position to where the robot is now.
  *
  * The flywheel/launcher spins up automatically when you press PLAY and
- * stays on until you press STOP on the Driver Hub.
+ * stays on until you press STOP.
  *
  * The robot's position comes from the SparkFun OTOS sensor, which must be
  * named "sensor_otos" in your robot configuration.
  * (0, 0) is wherever the robot was sitting when you pressed INIT.
  *
  * Camera: the webcam (named CAMERA_NAME in your robot configuration) is streamed
- * to FTC Dashboard at http://192.168.43.1:8080/dash
+ * to FTC Dashboard at http://192.168.43.1:8080/dash and to the web control page.
  */
 @Config
-@TeleOp(name = "NEWEST", group = "MainTeleOps") public class TestAprilTag extends OpMode {
+@TeleOp(name = "Prototype chassis + camera", group = "MainTeleOps") public class Chassis extends OpMode {
     private DcMotor leftFrontDrive = null;
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -72,9 +74,10 @@ import org.firstinspires.ftc.vision.VisionPortal;
     static final int CAMERA_HEIGHT = 480;
     static final int CAMERA_DASHBOARD_FPS = 15;     // lower this if the stream lags
 
-    // ---------- Keyboard control ----------
+    // ---------- Web page / keyboard control ----------
     private KeyboardServer keyboard = null;
     private final ElapsedTime loopTimer = new ElapsedTime();
+    private final StringBuilder pageTelemetry = new StringBuilder();   // copy of telemetry for the web page
     public static double KB_RAMP_PER_SEC = 3.0;     // power per second when speeding up (3.0 = full power in ~0.33 s)
     public static double KB_BRAKE_MULTIPLIER = 3.0; // slowing down is this many times faster than speeding up
     private double kbForward = 0;
@@ -121,6 +124,11 @@ import org.firstinspires.ftc.vision.VisionPortal;
     @Override
     public void init() {
         telemetry = new MultipleTelemetry(telemetry, FtcDashboard.getInstance().getTelemetry());
+
+        // The server normally started with the app already; this is a harmless safety net.
+        keyboard = KeyboardServer.getInstance();
+        keyboard.start();
+
         leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
         leftBackDrive = hardwareMap.get(DcMotor.class, "left_back_drive");
@@ -154,13 +162,12 @@ import org.firstinspires.ftc.vision.VisionPortal;
 
         configureOtos();
         configureCamera();
+        keyboard.setCamera(cameraProcessor);   // lets the web page show the camera too
+        keyboard.setPhase("INIT");
 
-        keyboard = new KeyboardServer();
-        keyboard.start();
-
-        telemetry.addData("Status", "Initialized - keep robot still & place it at start (0,0)");
-        telemetry.addData("Keyboard page", "http://192.168.43.1:" + KeyboardServer.PORT);
-        telemetry.update();
+        line("Status", "Initialized - keep robot still & place it at start (0,0)");
+        line("Web page", "http://192.168.43.1:" + KeyboardServer.PORT);
+        publishTelemetry();
     }
 
     /**
@@ -186,6 +193,7 @@ import org.firstinspires.ftc.vision.VisionPortal;
         flywheelOn = true;
         launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
         loopTimer.reset();
+        keyboard.setPhase("RUNNING");
     }
 
     @Override
@@ -255,23 +263,25 @@ import org.firstinspires.ftc.vision.VisionPortal;
         leftIntakeServo.setPower(intakePower);
         rightIntakeServo.setPower(intakePower);
 
-        // ----- Telemetry -----
-        telemetry.addData("Mode", autoMode ? "AUTO (press A or G to cancel)" : "DRIVER (press A or G for auto)");
+        // ----- Telemetry (goes to the Driver Hub, the dashboard and the web page) -----
+        line("Mode", autoMode ? "AUTO (press A or G to cancel)" : "DRIVER (press A or G for auto)");
         if (keyboard.getError() != null) {
-            telemetry.addData("KEYBOARD SERVER ERROR", keyboard.getError());
+            line("KEYBOARD SERVER ERROR", keyboard.getError());
         }
-        telemetry.addData("Keyboard", kbActive ? "connected, speed " + Math.round(kbSpeed * 100) + "%" : "no page connected");
+        line("Keyboard", kbActive ? "connected, speed " + Math.round(kbSpeed * 100) + "%" : "no page connected");
+        line("Keys mask / last packet ms", keys + " / " + keyboard.getLastPacketAgeMs());
+        line("Drive cmd F/S/R", String.format("%.2f / %.2f / %.2f", kbForward, kbStrafe, kbRotate));
         if (autoMode) {
-            telemetry.addData("At target", atTarget);
+            line("At target", atTarget);
         }
-        telemetry.addData("Flywheel on", flywheelOn);
-        telemetry.addData("Flywheel velocity", "%.0f", launcher.getVelocity());
-        telemetry.addData("X (in)", "%.2f", pos.x);
-        telemetry.addData("Y (in)", "%.2f", pos.y);
-        telemetry.addData("Heading (deg)", "%.1f", pos.h);
-        telemetry.addData("is target set?", isTargetReset);
-        telemetry.addData("Camera", visionPortal != null ? visionPortal.getCameraState() : "not started");
-        telemetry.update();   // needed because telemetry is now a MultipleTelemetry wrapper
+        line("Flywheel on", flywheelOn);
+        line("Flywheel velocity", String.format("%.0f", launcher.getVelocity()));
+        line("X (in)", String.format("%.2f", pos.x));
+        line("Y (in)", String.format("%.2f", pos.y));
+        line("Heading (deg)", String.format("%.1f", pos.h));
+        line("is target set?", isTargetReset);
+        line("Camera", visionPortal != null ? visionPortal.getCameraState() : "not started");
+        publishTelemetry();
     }
 
     /**
@@ -283,13 +293,30 @@ import org.firstinspires.ftc.vision.VisionPortal;
         windmillServo.setPower(0);
         mecanumDrive(0, 0, 0);
 
+        // The web server keeps running (so you can pick another OpMode); just detach from this one.
         if (keyboard != null) {
-            keyboard.stop();
+            keyboard.setPhase("");
+            keyboard.setCamera(null);
+            keyboard.setTelemetry("");
+            keyboard.clearInput();
         }
         FtcDashboard.getInstance().stopCameraStream();
         if (visionPortal != null) {
             visionPortal.close();
         }
+    }
+
+    /** Adds a telemetry line and keeps a copy for the web page. */
+    private void line(String label, Object value) {
+        telemetry.addData(label, value);
+        pageTelemetry.append(label).append(": ").append(value).append('\n');
+    }
+
+    /** Sends the collected lines to the Driver Hub, dashboard and web page. */
+    private void publishTelemetry() {
+        telemetry.update();   // needed because telemetry is now a MultipleTelemetry wrapper
+        keyboard.setTelemetry(pageTelemetry.toString());
+        pageTelemetry.setLength(0);
     }
 
     /** +1 if the "positive" key is held, -1 if the "negative" key is held, 0 if both or neither. */
