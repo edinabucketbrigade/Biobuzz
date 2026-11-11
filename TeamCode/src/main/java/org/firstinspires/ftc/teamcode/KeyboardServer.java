@@ -481,6 +481,11 @@ public class KeyboardServer {
                     + "document.getElementById('bx').onclick=function(){cmd('stop');this.blur();};"
                     + "loadOps();setInterval(function(){if(!ops.options.length){loadOps();}},3000);"
                     + "var lastPh='',fails=0,lastTel=0,camMsg=document.getElementById('camMsg');"
+                    + "var bi=document.getElementById('bi'),bs=document.getElementById('bs'),bx=document.getElementById('bx');"
+                    + "function setButtons(p){var idle=(p==='IDLE');"
+                    + "ops.style.display=idle?'':'none';bi.style.display=idle?'':'none';"
+                    + "bs.style.display=(p==='INIT'||p==='ACTIVE')?'':'none';"
+                    + "bx.style.display=(p==='RUNNING'||p==='ACTIVE')?'':'none';}"
                     + "function showCam(on){if(on){camMsg.style.display='none';cam.style.display='block';cam.src='/cam?'+Date.now();}"
                     + "else{cam.removeAttribute('src');cam.style.display='none';camMsg.style.display='flex';}}"
                     + "cam.onerror=function(){setTimeout(function(){if(lastPh!==''&&lastPh!=='IDLE'){cam.src='/cam?'+Date.now();}},2000);};"
@@ -492,11 +497,12 @@ public class KeyboardServer {
                     + "var p=s.phase+(s.phase!=='IDLE'&&s.active?' ('+s.active+')':'');"
                     + "if(ph.textContent!==p){ph.textContent=p;}"
                     + "if((s.phase!=='IDLE')!==(lastPh!=='IDLE')){showCam(s.phase!=='IDLE');}"
+                    + "if(s.phase!==lastPh){setButtons(s.phase);}"
                     + "lastPh=s.phase;"
                     + "var now=Date.now();"
                     + "if(s.telemetry!==tl.textContent&&now-lastTel>250){tl.textContent=s.telemetry;lastTel=now;}})"
                     + ".catch(function(){fails++;if(fails>=3){st.textContent='offline';st.className='';}})"
                     + ".then(function(){setTimeout(tick,50);});}"
-                    + "showCam(false);tick();"
+                    + "showCam(false);setButtons('IDLE');tick();"
                     + "</script></body></html>";
-}[]
+}

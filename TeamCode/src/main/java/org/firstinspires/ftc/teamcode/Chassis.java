@@ -128,6 +128,7 @@ import org.firstinspires.ftc.vision.VisionPortal;
         // The server normally started with the app already; this is a harmless safety net.
         keyboard = KeyboardServer.getInstance();
         keyboard.start();
+        keyboard.setPhase("INIT");   // so the web page shows the right buttons while init() is still running
 
         leftFrontDrive = hardwareMap.get(DcMotor.class, "left_front_drive");
         rightFrontDrive = hardwareMap.get(DcMotor.class, "right_front_drive");
