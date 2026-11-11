@@ -2,6 +2,7 @@ package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
 
+import com.qualcomm.robotcore.eventloop.opmode.Disabled;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
@@ -10,7 +11,7 @@ import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
 
-@TeleOp(name = "Mec BioBuzz StarterBot Teleop", group = "StarterBot")
+@Disabled
 public class starterStudiedTelMech extends OpMode {
 
     private DcMotor leftFrontDrive = null;
@@ -23,8 +24,8 @@ public class starterStudiedTelMech extends OpMode {
     private CRServo rightIntakeServo = null;
     private CRServo windmillServo = null;
 
-    public final int LAUNCHER_TARGET_VELOCITY = 1250;
-    public final int LAUNCHER_MIN_VELOCITY = 1200;
+    public final int LAUNCHER_TARGET_VELOCITY = 1400;
+    public final int LAUNCHER_MIN_VELOCITY = 1350;
 
     double leftFrontPower;
     double rightFrontPower;
@@ -139,7 +140,7 @@ public class starterStudiedTelMech extends OpMode {
 
         if(shouldLaunch){
             windmillServo.setPower(1);
-            intakePower += 0.5;
+            intakePower += .5;
         } else {
             windmillServo.setPower(0);
         }
