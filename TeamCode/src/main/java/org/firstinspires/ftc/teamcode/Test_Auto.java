@@ -1,20 +1,23 @@
 package org.firstinspires.ftc.teamcode;
 
 import static com.qualcomm.robotcore.hardware.DcMotor.ZeroPowerBehavior.BRAKE;
+
 import com.qualcomm.hardware.sparkfun.SparkFunOTOS;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
-import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.DcMotorEx;
 import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.PIDFCoefficients;
+
 import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
 import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 
-@TeleOp(name = "Mec BioBuzz Teleop + Auto Toggle backup", group = "StarterBot")
-public class Data extends OpMode {
+@Autonomous(name = "Multi-Waypoint Autonomous", group = "StarterBot")
+public class Test_Auto extends OpMode {
 
+    // ---------- Hardware ----------
     private DcMotor leftFrontDrive = null;
     private DcMotor leftBackDrive = null;
     private DcMotor rightFrontDrive = null;
@@ -26,29 +29,43 @@ public class Data extends OpMode {
     private CRServo windmillServo = null;
     private SparkFunOTOS otos = null;
 
-    public final int LAUNCHER_TARGET_VELOCITY = 1400;
-    public final int LAUNCHER_MIN_VELOCITY = 1350;
+    // ---------- WAYPOINT TABLE (Customize your path here!) ----------
+    // Format: new Waypoint(X_inches, Y_inches, Heading_degrees, Max_Power)
+    Waypoint[] path = {
+            new Waypoint(0.0,  0.0,   0.0, 0.35),  // Waypoint 1
+            new Waypoint(0.0, 0.0,  0.0, 0.30),  // Waypoint 2
+            new Waypoint( 0.0,  0.0,   0.0, 0.35)   // Waypoint 3 (Return home)
+    };
 
-    static final double TARGET_X_IN = 0;
-    static final double TARGET_Y_IN = 0;
-    static final double TARGET_HEADING_DEG = 0;
-    static final double FORWARD_SIGN = -1;
-    static final double STRAFE_SIGN = -1;
-    static final double MAX_AUTO_POWER = 0.30;
+    int currentWaypointIndex = 0;
+    boolean autonomousFinished = false;
+
+    // Direction correction signs
+    static final double FORWARD_SIGN = -1.0;
+    static final double STRAFE_SIGN = -1.0;
+
+    // Movement Tuning Speeds & Tolerances
     static final double MIN_AUTO_POWER = 0.20;
     static final double DRIVE_GAIN = 0.04;
     static final double TURN_GAIN = 0.015;
     static final double POSITION_TOLERANCE_IN = 0.75;
     static final double HEADING_TOLERANCE_DEG = 2.0;
 
-    boolean autoMode = false;
-    boolean lastA = false;
-    boolean atTarget = false;
     double leftFrontPower;
     double rightFrontPower;
     double leftBackPower;
     double rightBackPower;
-    double intakePower;
+
+    // Simple helper class to hold waypoint attributes
+    public static class Waypoint {
+        public double x, y, heading, maxPower;
+        public Waypoint(double x, double y, double heading, double maxPower) {
+            this.x = x;
+            this.y = y;
+            this.heading = heading;
+            this.maxPower = maxPower;
+        }
+    }
 
     @Override
     public void init() {
@@ -84,75 +101,80 @@ public class Data extends OpMode {
         windmillServo.setDirection(DcMotorSimple.Direction.REVERSE);
 
         configureOtos();
-        telemetry.addData("Status", "Initialized - keep robot still & place it at start (0,0)");
+
+        telemetry.addData("Status", "Initialized - Ready for Waypoints");
+        telemetry.update();
     }
 
     @Override
     public void loop() {
-        if (gamepad1.a && !lastA) {
-            autoMode = !autoMode;
-            atTarget = false;
-        }
-        lastA = gamepad1.a;
-
-        if (gamepad1.y) {
-            otos.resetTracking();
-        }
-
         SparkFunOTOS.Pose2D pos = otos.getPosition();
 
-        if (autoMode) {
-            driveToTarget(pos);
+        if (!autonomousFinished) {
+            // Get the current active waypoint target from our table
+            Waypoint target = path[currentWaypointIndex];
+
+            boolean reachedWaypoint = driveToTarget(pos, target);
+
+            if (reachedWaypoint) {
+                currentWaypointIndex++; // Move to the next waypoint in the list
+                if (currentWaypointIndex >= path.length) {
+                    autonomousFinished = true; // Path is complete!
+                }
+            }
         } else {
-            mecanumDrive(-gamepad1.left_stick_y, gamepad1.left_stick_x, gamepad1.right_stick_x);
+            // Stop robot when all waypoints are done
+            mecanumDrive(0, 0, 0);
         }
 
-        intakePower = gamepad1.right_trigger - gamepad1.left_trigger;
-        launch();
-        intake.setPower(intakePower);
-        leftIntakeServo.setPower(intakePower);
-        rightIntakeServo.setPower(intakePower);
-
-        telemetry.addData("Mode", autoMode ? "AUTO (press A to cancel)" : "DRIVER (press A for auto)");
-        if (autoMode) {
-            telemetry.addData("At target", atTarget);
+        // ----- Telemetry Feedback -----
+        telemetry.addData("Status", autonomousFinished ? "Autonomous Complete!" : "Running Waypoint " + (currentWaypointIndex + 1) + " of " + path.length);
+        if (!autonomousFinished) {
+            telemetry.addData("Target X", path[currentWaypointIndex].x);
+            telemetry.addData("Target Y", path[currentWaypointIndex].y);
         }
-        telemetry.addData("X (in)", "%.2f", pos.x);
-        telemetry.addData("Y (in)", "%.2f", pos.y);
+        telemetry.addData("Current X (in)", "%.2f", pos.x);
+        telemetry.addData("Current Y (in)", "%.2f", pos.y);
         telemetry.addData("Heading (deg)", "%.1f", pos.h);
+        telemetry.update();
     }
 
-    void driveToTarget(SparkFunOTOS.Pose2D pos) {
-        double errX = TARGET_X_IN - pos.x;
-        double errY = TARGET_Y_IN - pos.y;
-        double errH = wrapDegrees(TARGET_HEADING_DEG - pos.h);
+    /** Drives toward a specific waypoint and returns true when reached. */
+    boolean driveToTarget(SparkFunOTOS.Pose2D pos, Waypoint target) {
+        double errX = target.x - pos.x;
+        double errY = target.y - pos.y;
+        double errH = wrapDegrees(target.heading - pos.h);
+
         double distance = Math.hypot(errX, errY);
 
+        // Check if we arrived at this specific waypoint
         if (distance < POSITION_TOLERANCE_IN && Math.abs(errH) < HEADING_TOLERANCE_DEG) {
-            atTarget = true;
             mecanumDrive(0, 0, 0);
-            return;
+            return true; // Waypoint reached!
         }
-        atTarget = false;
 
+        // Rotate field-frame error into the robot's local frame
         double h = Math.toRadians(pos.h);
         double strafeErr = errX * Math.cos(h) + errY * Math.sin(h);
         double forwardErr = -errX * Math.sin(h) + errY * Math.cos(h);
 
-        double forward = FORWARD_SIGN * clampWithMin(forwardErr * DRIVE_GAIN, POSITION_TOLERANCE_IN * DRIVE_GAIN);
-        double strafe = STRAFE_SIGN * clampWithMin(strafeErr * DRIVE_GAIN, POSITION_TOLERANCE_IN * DRIVE_GAIN);
+        double deadbandLimit = POSITION_TOLERANCE_IN * DRIVE_GAIN;
+        double forward = FORWARD_SIGN * clampWithMin(forwardErr * DRIVE_GAIN, deadbandLimit, target.maxPower);
+        double strafe = STRAFE_SIGN * clampWithMin(strafeErr * DRIVE_GAIN, deadbandLimit, target.maxPower);
 
+        // Turn correction
         double rotate = -errH * TURN_GAIN;
         if (Math.abs(errH) < HEADING_TOLERANCE_DEG) rotate = 0;
-        rotate = Math.max(-MAX_AUTO_POWER, Math.min(MAX_AUTO_POWER, rotate));
+        rotate = Math.max(-target.maxPower, Math.min(target.maxPower, rotate));
 
         mecanumDrive(forward, strafe, rotate);
+        return false; // Still driving toward it
     }
 
-    double clampWithMin(double power, double deadband) {
+    double clampWithMin(double power, double deadband, double maxPower) {
         if (Math.abs(power) < deadband) return 0;
         double sign = Math.signum(power);
-        double mag = Math.max(MIN_AUTO_POWER, Math.min(MAX_AUTO_POWER, Math.abs(power)));
+        double mag = Math.max(MIN_AUTO_POWER, Math.min(maxPower, Math.abs(power)));
         return sign * mag;
     }
 
@@ -183,21 +205,6 @@ public class Data extends OpMode {
         rightFrontDrive.setPower(rightFrontPower);
         leftBackDrive.setPower(leftBackPower);
         rightBackDrive.setPower(rightBackPower);
-    }
-
-    void launch() {
-        if (gamepad1.right_bumper) {
-            launcher.setVelocity(LAUNCHER_TARGET_VELOCITY);
-        } else {
-            launcher.setVelocity(0);
-        }
-
-        if (gamepad1.right_bumper && launcher.getVelocity() > LAUNCHER_MIN_VELOCITY) {
-            windmillServo.setPower(1);
-            intakePower += 0.5;
-        } else {
-            windmillServo.setPower(0);
-        }
     }
 
     private void configureOtos() {

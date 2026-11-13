@@ -28,8 +28,14 @@ public class FirstAuto extends OpMode {
     private CRServo windmillServo = null;
     private SparkFunOTOS otos = null;
 
+<<<<<<< Updated upstream
     static final int LAUNCHER_TARGET_VELOCITY = 1250;
     static final int LAUNCHER_MIN_VELOCITY = 1200;
+=======
+    // ---------- Launcher ----------
+    public final int LAUNCHER_TARGET_VELOCITY = 1200;
+    public final int LAUNCHER_MIN_VELOCITY = 1150;
+>>>>>>> Stashed changes
 
     Waypoint[] path = {
             new Waypoint(0.0,  5.0,   0.0, 0.35, false, 0.0),
